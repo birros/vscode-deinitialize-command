@@ -1,0 +1,62 @@
+#!/bin/sh
+
+getRealDockerCompodePath () {
+    REAL_DOCKER_COMPOSE=""
+    SCRIPTPATH="$( cd "$(dirname "$1")" >/dev/null 2>&1 ; pwd -P )"
+    IFS=':'; arrIN=($PATH); unset IFS;
+    PATHS="$(echo $PATH | tr ":" " ")"
+    for i in $PATHS; do
+        if [ $i != $SCRIPTPATH ]; then
+            P="$i/docker-compose"
+            if [ -f $P ]; then
+                REAL_DOCKER_COMPOSE="$P"
+            fi
+        fi
+    done
+
+    echo $REAL_DOCKER_COMPOSE
+}
+
+containsElement () {
+    local array="$1"
+    local string="$2"
+    
+    for i in ${array}; do
+        if [ "$i" == "$string" ] ; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+REAL_DOCKER_COMPOSE=$(getRealDockerCompodePath $0)
+if [ -z $REAL_DOCKER_COMPOSE ]; then
+    echo "real docker-compose not found"
+    exit 1
+fi
+
+MAKE_PATHS="/usr/bin/make /Applications/Xcode.app/Contents/Developer/usr/bin/make"
+PARENT_COMMAND=$(ps -o comm= $PPID)
+
+# check that this script is called from outside of Makefile
+if ! containsElement "${MAKE_PATHS[@]}" "${PARENT_COMMAND}"; then
+
+    # if `docker-compose stop -t 0` run some commands
+    if [[ "$@" = *"stop -t 0" ]]; then
+
+        # search deinitializeCommand
+        if [ -f .devcontainer/devcontainer.json ]; then
+            DEINIT_COMMAND_RAW=$(grep deinitializeCommand .devcontainer/devcontainer.json | awk '{$1=$1;print}')
+            DEINIT_COMMAND=$(echo $DEINIT_COMMAND_RAW | sed 's/^\"deinitializeCommand\" *: *\"\(.*\)\".*/\1/')
+
+            # run deinitializeCommand if exists
+            if [ "$DEINIT_COMMAND_RAW" != "$DEINIT_COMMAND" ] && [ ! -z "$DEINIT_COMMAND" ]; then
+                $DEINIT_COMMAND
+            fi
+        fi
+    fi
+fi
+
+# finally run real docker-compose
+$REAL_DOCKER_COMPOSE "$@"
