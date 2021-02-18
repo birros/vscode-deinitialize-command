@@ -45,15 +45,21 @@ if ! containsElement "${MAKE_PATHS[@]}" "${PARENT_COMMAND}"; then
     # if `docker-compose stop -t 0` run some commands
     if [[ "$@" = *"stop -t 0" ]]; then
 
-        # search deinitializeCommand
+        # search deinitializeCommand in .devcontainer/devcontainer.json
         if [ -f .devcontainer/devcontainer.json ]; then
             DEINIT_COMMAND_RAW=$(grep deinitializeCommand .devcontainer/devcontainer.json | awk '{$1=$1;print}')
-            DEINIT_COMMAND=$(echo $DEINIT_COMMAND_RAW | sed 's/^\"deinitializeCommand\" *: *\"\(.*\)\".*/\1/')
+        fi
 
-            # run deinitializeCommand if exists
-            if [ "$DEINIT_COMMAND_RAW" != "$DEINIT_COMMAND" ] && [ ! -z "$DEINIT_COMMAND" ]; then
-                $DEINIT_COMMAND
-            fi
+        # search deinitializeCommand in .devcontainer.json
+        if [ -f .devcontainer.json ]; then
+            DEINIT_COMMAND_RAW=$(grep deinitializeCommand .devcontainer.json | awk '{$1=$1;print}')
+        fi
+
+        DEINIT_COMMAND=$(echo $DEINIT_COMMAND_RAW | sed 's/^\"deinitializeCommand\" *: *\"\(.*\)\".*/\1/')
+
+        # run deinitializeCommand if exists
+        if [ ! -z "$DEINIT_COMMAND" ] && [ "$DEINIT_COMMAND_RAW" != "$DEINIT_COMMAND" ]; then
+            $DEINIT_COMMAND
         fi
     fi
 fi
